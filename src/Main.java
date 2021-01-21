@@ -1,7 +1,4 @@
-import Extras.ExtraFile;
-import Extras.ExtraScanner;
-import Extras.ExtraSystem;
-import Extras.Time;
+import Extras.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,16 +50,18 @@ public class Main {
         System.out.println();
         //File dir = ExtraScanner.nextClass(in, File.class);
         File dir = new File("/Users/Adebas/Desktop");
+        Size size = new Size.GigiBytes(3);
         try {
-            addDir(dir);
-        } catch (Exception e){
+            addDir(dir,size);
+        } catch (Exception e) {
             e.printStackTrace();
+            System.exit(1);
         }
         System.out.println(Table.string());
     }
 
-    public static void addDir(File path) throws Exception {
-        Table.Directory dir = Table.newDir(path);
+    public static void addDir(File path, Size size) throws Exception {
+        Table.Directory dir = Table.newDir(path, size);
         if (dir != null) {
             dir.renewAccessTimes();
             Table.save();

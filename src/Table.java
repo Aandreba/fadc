@@ -1,7 +1,4 @@
-import Extras.ExtraArray;
-import Extras.ExtraFile;
-import Extras.ExtraObject;
-import Extras.Time;
+import Extras.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -261,9 +258,11 @@ public class Table {
         }
 
         private TableFile[] history;
+        public Size cacheSize;
 
-        public Directory(File dir) throws IOException {
+        public Directory(File dir, Size size) throws IOException {
             super(dir.getCanonicalPath());
+            this.cacheSize = size;
             if (!dir.isDirectory()){
                 System.out.println("Tried to provide non-directory");
                 System.exit(1);
@@ -273,8 +272,9 @@ public class Table {
             }
             this.history = new TableFile[0];
         }
-        public Directory(File dir, TableFile[] history) throws IOException {
+        public Directory(File dir, Size size, TableFile[] history) throws IOException {
             super(dir.getCanonicalPath());
+            this.cacheSize = size;
             if (!dir.isDirectory()){
                 System.out.println("Tried to provide non-directory");
                 System.exit(1);
@@ -461,14 +461,14 @@ public class Table {
 
         public byte[] byteArray() throws IOException {
             byte[] out = this.getCanonicalPath().getBytes();
-            return ExtraArray.concat(ExtraObject.byteArray(out.length),out,TableFile.byteArray(history));
+            return ExtraArray.concat(ExtraObject.byteArray(out.length),out,ExtraObject.byteArray(Math.round(this.cacheSize.getBytes().value)),TableFile.byteArray(history));
         }
 
         public static byte[] byteArray(Directory[] dirs) throws IOException {
             byte[] out = new byte[0];
             for (int i=0;i<dirs.length;i++){
                 byte[] bytes = dirs[i].byteArray();
-                out = ExtraArray.concat(out,ExtraObject.byteArray(bytes.length),bytes);
+                out = ExtraArray.concat(out,ExtraObject.byteArray(bytes.length),ExtraObject.byteArray(Math.round(dirs[i].cacheSize.getBytes().value)),bytes);
             }
             return out;
         }
@@ -480,9 +480,10 @@ public class Table {
         public static Directory byteArray(byte[] bytes){
             int pathLength = ExtraObject.byteArrayInt(ExtraArray.subArray(bytes,0,4));
             String path = new String(ExtraArray.subArray(bytes,4,pathLength), StandardCharsets.UTF_8);
-            TableFile[] history = TableFile.fromByteArray(ExtraArray.subArray(bytes,4+pathLength));
+            long size = ExtraObject.byteArrayLong(ExtraArray.subArray(bytes,4+pathLength,8));
+            TableFile[] history = TableFile.fromByteArray(ExtraArray.subArray(bytes,12+pathLength));
             try {
-                return new Directory(new File(path), history);
+                return new Directory(new File(path), new Size.Bytes(size), history);
             } catch (Exception e){
                 e.printStackTrace();
             }
@@ -501,7 +502,7 @@ public class Table {
             return r;
         }
     }
-    public static File table = new File("./data/table");
+    public static File table = new File("./data/table.fadc");
     public static List<Directory> dirs;
 
     // TO DO
@@ -518,7 +519,7 @@ public class Table {
         return dirs.toString();
     }
 
-    public static Directory newDir(File d){
+    public static Directory newDir(File d, Size size){
         for (Directory dir: dirs){
             if (dir.getFile().equals(d)){
                 System.out.println("Directory already in list");
@@ -526,41 +527,12 @@ public class Table {
             }
         }
         try {
-            Directory dir = new Directory(d);
+            Directory dir = new Directory(d,size);
             dirs.add(dir);
             return dir;
         } catch (Exception e){
             e.printStackTrace();
         }
         return null;
-    }
-
-    public static void newAccess(File dir, File file, Date date) throws IOException {
-        if (file.isDirectory()){
-            System.out.println("Directories can't be tracked");
-            return;
-        } else if (!file.exists()){
-            System.out.println("File not found");
-            return;
-        }
-        int indexDir = dirs.indexOf(dir);
-        Directory directory = null;
-        if (indexDir < 0) {
-            directory = new Directory(dir);
-            dirs.add(directory);
-            indexDir = dirs.size()-1;
-        } else {
-            directory = dirs.get(indexDir);
-        }
-
-        int indexFile = directory.indexOf(file);
-        Directory.TableFile tabFile = null;
-        if (indexFile < 0){
-            tabFile = new Directory.TableFile(file);
-            directory.add(tabFile);
-            indexFile = directory.size()-1;
-        }
-
-        tabFile.add(date);
     }
 }
