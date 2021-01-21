@@ -89,7 +89,7 @@ public class ExtraFile {
         for (int i=1;i<lines.length;i++){
             String[] vals = lines[i].split("\s*,\s*");
             Time time = new Time.NanoSeconds(Double.parseDouble(vals[laId].split("\\+")[0]));
-            r.put(new File(vals[pathId]),ExtraSystem.wmicDate(vals[laId]));
+            r.put(new File(dir,vals[pathId]),ExtraSystem.wmicDate(vals[laId]));
         }
         return r;
     }
@@ -118,7 +118,7 @@ public class ExtraFile {
             }
             String dateStr = String.join(" ",ExtraArray.subArray(cols,5,4));
             Date date = format.parse(dateStr);
-            r.put(new File(name), date);
+            r.put(new File(file,name), date);
         }
         return r;
     }

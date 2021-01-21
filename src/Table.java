@@ -1,6 +1,7 @@
 import Extras.ExtraArray;
 import Extras.ExtraFile;
 import Extras.ExtraObject;
+import Extras.Time;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +35,22 @@ public class Table {
 
             public File getFile(){
                 return this;
+            }
+
+            public int numLogsLastTime(long millis){
+                long current = System.currentTimeMillis();
+                int id = 0;
+                for (int i=0;i<logs.length;i++){
+                    if (current-logs[i] > millis){
+                        continue;
+                    }
+                    id = i;
+                    break;
+                }
+                return logs.length-id;
+            }
+            public int numLogsLastTime(Time delta){
+                return numLogsLastTime(Math.round(delta.getMilliSeconds().value));
             }
 
             @Override
@@ -195,7 +212,12 @@ public class Table {
 
             @Override
             public String toString(){
-                return getPath()+": "+Main.number.format(size())+" logs ("+lastDate()+")";
+                try {
+                    return getCanonicalPath() + ": " + Main.number.format(size()) + " logs (" + lastDate() + ")";
+                } catch (Exception e){
+                    e.printStackTrace();
+                    return "";
+                }
             }
 
             public byte[] byteArray() throws IOException {
@@ -240,8 +262,8 @@ public class Table {
 
         private TableFile[] history;
 
-        public Directory(File dir){
-            super(dir.getPath());
+        public Directory(File dir) throws IOException {
+            super(dir.getCanonicalPath());
             if (!dir.isDirectory()){
                 System.out.println("Tried to provide non-directory");
                 System.exit(1);
@@ -251,8 +273,8 @@ public class Table {
             }
             this.history = new TableFile[0];
         }
-        public Directory(File dir, TableFile[] history){
-            super(dir.getPath());
+        public Directory(File dir, TableFile[] history) throws IOException {
+            super(dir.getCanonicalPath());
             if (!dir.isDirectory()){
                 System.out.println("Tried to provide non-directory");
                 System.exit(1);
@@ -317,7 +339,6 @@ public class Table {
         public Object[] toArray() {
             return this.history;
         }
-
         @Override
         public <T> T[] toArray(T[] a) {
             if (a.length > 0) {
@@ -453,14 +474,19 @@ public class Table {
         }
 
         public static byte[] byteArray(Collection<? extends Directory> dirs) throws IOException {
-            return byteArray(dirs.toArray(new Directory[0]));
+            return byteArray(dirs.toArray(new Directory[dirs.size()]));
         }
 
         public static Directory byteArray(byte[] bytes){
             int pathLength = ExtraObject.byteArrayInt(ExtraArray.subArray(bytes,0,4));
             String path = new String(ExtraArray.subArray(bytes,4,pathLength), StandardCharsets.UTF_8);
             TableFile[] history = TableFile.fromByteArray(ExtraArray.subArray(bytes,4+pathLength));
-            return new Directory(new File(path), history);
+            try {
+                return new Directory(new File(path), history);
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+            return null;
         }
 
         public static Directory[] fromByteArray(byte[] bytes){
@@ -499,12 +525,17 @@ public class Table {
                 return null;
             }
         }
-        Directory dir = new Directory(d);
-        dirs.add(dir);
-        return dir;
+        try {
+            Directory dir = new Directory(d);
+            dirs.add(dir);
+            return dir;
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
     }
 
-    public static void newAccess(File dir, File file, Date date){
+    public static void newAccess(File dir, File file, Date date) throws IOException {
         if (file.isDirectory()){
             System.out.println("Directories can't be tracked");
             return;
