@@ -12,26 +12,32 @@ import java.util.Scanner;
 
 public class Main {
     public static Scanner in = new Scanner(System.in);
-
     public static NumberFormat number = NumberFormat.getNumberInstance();
     final public static String[] options = new String[]{ "add" };
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         /*if (ExtraSystem.env.os != ExtraSystem.Enviroment.OS.Windows){
             System.out.println("Sorry, we currently only support Windows");
             System.exit(1);
         }*/
-        File f = new File("./data/table");
-        System.out.println(ExtraFile.lastAccessTime(f));
-        System.exit(1);
         System.out.println("Hello :)");
         if (!Table.table.exists()){
             System.out.println("Table not found. Creating new one");
             Table.table.getParentFile().mkdirs();
-            Table.table.createNewFile();
+            try {
+                Table.table.createNewFile();
+            } catch (Exception e){
+                e.printStackTrace();
+                System.exit(1);
+            }
             System.out.println("Table created");
         }
-        Table.init();
+        try {
+            Table.init();
+        } catch (Exception e){
+            e.printStackTrace();
+            System.exit(1);
+        }
         if (Table.dirs.size() <= 0){
             System.out.println("Table is empty");
         }
@@ -45,9 +51,14 @@ public class Main {
         System.exit(1);*/
         System.out.println("Path of dir to add:");
         System.out.println();
-        File dir = ExtraScanner.nextClass(in, File.class);
-        System.out.println("Getting files from: "+dir);
-        addDir(dir);
+        //File dir = ExtraScanner.nextClass(in, File.class);
+        File dir = new File("/Users/Adebas/Desktop");
+        try {
+            addDir(dir);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        System.out.println(Table.string());
     }
 
     public static void addDir(File path) throws Exception {

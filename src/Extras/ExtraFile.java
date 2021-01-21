@@ -1,17 +1,10 @@
 package Extras;
 
-import Optimization.CPU;
-
 import javax.management.InvalidAttributeValueException;
 import java.io.*;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileTime;
-import java.sql.Array;
+import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 public class ExtraFile {
     public static byte[] readBytes(InputStream stream) throws IOException {
@@ -52,19 +45,25 @@ public class ExtraFile {
     }
 
     private static Date unixLastAccessTime(File file) throws IOException {
-        String exec = ExtraSystem.exec("stat -r "+file.getCanonicalPath());
-        String[] data = exec.split("\s+");
-        return new Date(Long.parseLong(data[8])*1000);
+        /*String path = String.join("\\ ",file.getCanonicalPath().split(" "));
+        String exec = ExtraSystem.exec("stat -r "+path);
+        String[] data = exec.split("\\s+");
+        System.out.println(path+": "+Arrays.toString(data));
+        System.exit(1);
+        return new Date(Long.parseLong(data[8])*1000);*/
+        return null;
     }
 
     public static Date lastAccessTime(File file) throws Exception {
         if (file.isDirectory()){
             throw new InvalidAttributeValueException("Directory provided, file expected");
         }
-        if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Unix || ExtraSystem.env.os == ExtraSystem.Enviroment.OS.OSX){
+        if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Unix){
             return unixLastAccessTime(file);
         } else if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Windows){
             // Windows (TO DO)
+        } else if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.OSX){
+            //return osxLastAccessTime(file);
         }
         return null;
     }
@@ -94,44 +93,62 @@ public class ExtraFile {
         }
         return r;
     }
+    private static Map<File,Date> osxLastAccessTimes(File file) throws Exception {
+        Map<File,Date> r = new HashMap<>();
+        SimpleDateFormat format = new SimpleDateFormat("MMM dd kk:mm:ss yyyy", Locale.ENGLISH);
+        String path = String.join("\\ ",file.getCanonicalPath().split(" "));
+        String exec = "ls -luaT "+path;
+        exec = ExtraSystem.exec(exec);
+
+        String[] lines = exec.split("\\n");
+        for (int i=0;i<lines.length;i++){
+            String[] cols = lines[i].split("(\\s|\\t)+");
+            if (cols[0].equals("total") || cols.length == 0 || cols[0].equals("")){
+                continue;
+            }
+            String name = null;
+            if (cols.length > 10) {
+                name = String.join(" ", ExtraArray.subArray(cols, 9));
+            } else {
+                name = cols[9];
+            }
+            name = name.strip();
+            if (name.equals(".") || name.equals("..") || !ExtraString.contains(name,"\\..+$")){
+                continue;
+            }
+            String dateStr = String.join(" ",ExtraArray.subArray(cols,5,4));
+            Date date = format.parse(dateStr);
+            r.put(new File(name), date);
+        }
+        return r;
+    }
+
+    public static Map<File,Date> lastAccessTimes(File dir, boolean print) throws Exception {
+        ExtraSystem.Enviroment.OS os = ExtraSystem.env.os;
+        Map<File, Date> out = new HashMap<>();
+
+        if (os == ExtraSystem.Enviroment.OS.Windows) {
+            out = windowsAccessTimes(dir);
+        } else {
+            out = osxLastAccessTimes(dir);
+        }
+
+        File[] files = dir.listFiles();
+        int i=0;
+        for (File file : files) {
+            i++;
+            if (print) {
+                System.out.println(i * 100f / files.length);
+            }
+            if (!file.isDirectory()) {
+                continue;
+            }
+            out.putAll(lastAccessTimes(file,false));
+        }
+        return out;
+    }
 
     public static Map<File,Date> lastAccessTimes(File dir) throws Exception {
-        // UNIX: stat /etc
-        if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.OSX || ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Unix){
-
-        } else if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Windows) {
-            Map<File, Date> out = new HashMap<>();
-            CPU optim = new CPU(() -> {
-                try {
-                    System.out.println("Error");
-                    out.putAll(windowsAccessTimes(dir));
-                } catch (IOException e) {
-                    System.out.println("ErRoR");
-                    e.printStackTrace();
-                }
-            });
-            optim.setCPUPct(0.5f);
-
-            File[] files = dir.listFiles();
-            for (File file : files) {
-                if (!file.isDirectory()) {
-                    continue;
-                }
-                optim.addRunnable(() -> {
-                    try {
-                        out.putAll(lastAccessTimes(file));
-                    } catch (Exception e) {
-                        System.out.println("Error");
-                        e.printStackTrace();
-                    }
-                });
-            }
-            // TO DO
-            optim.start();
-            Thread.sleep(5000);
-            optim.interrupt();
-            return out;
-        }
-        return null;
+        return lastAccessTimes(dir,true);
     }
 }

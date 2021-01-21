@@ -1,10 +1,12 @@
 package Optimization;
 
 import Extras.ExtraArray;
+import Extras.ExtraClass;
 import Extras.ExtraFile;
 import Extras.ExtraSystem;
 
 import javax.management.InvalidAttributeValueException;
+import java.io.File;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -12,7 +14,7 @@ import java.util.Arrays;
 import java.util.function.Function;
 
 public class CPU extends Thread {
-    class OptimFunction<T,R> implements Runnable, Function<T,R> {
+    public class OptimFunction<T,R> implements Runnable, Function<T,R> {
         public Function<T,R> func;
         public T input;
         public R output;
@@ -36,19 +38,32 @@ public class CPU extends Thread {
             output = apply(input);
         }
     }
-    class OptimMethod extends Thread {
+    public class OptimMethod<T> extends Thread {
         final public Method method;
         public Object[] inputs;
-        public Object output;
+        public T output;
+        private Class<T> returnType;
 
-        public OptimMethod(Method method){
+        public OptimMethod(Method method, Class<T> returnType){
             this.method = method;
             this.inputs = new Object[method.getParameterCount()];
+            this.returnType = returnType;
+        }
+
+        public OptimMethod(Method method){
+            this(method,(Class<T>)method.getReturnType());
+            System.out.println(this.returnType);
+        }
+
+        public OptimMethod(Method method, Class<T> returnType, Object... params) throws Exception {
+            this(method,returnType);
+            for (int i=0;i<params.length;i++){
+                addInput(i,params[i]);
+            }
         }
 
         public OptimMethod(Method method, Object... params) throws Exception {
-            this.method = method;
-            this.inputs = new Object[method.getParameterCount()];
+            this(method);
             for (int i=0;i<params.length;i++){
                 addInput(i,params[i]);
             }
@@ -58,16 +73,24 @@ public class CPU extends Thread {
             if (i >= this.inputs.length){
                 throw new IndexOutOfBoundsException();
             }
-            if (!o.getClass().equals(method.getParameterTypes()[i])){
-                throw new InvalidAttributeValueException("Incorrect input type at index "+i+". "+method.getParameterTypes()[i]+" expected");
+            //System.out.println(Arrays.toString(o.getClass().get));
+            if (!ExtraClass.isImplementOf(o.getClass(),method.getParameterTypes()[i])) {
+                throw new InvalidAttributeValueException("Incorrect input type at index "+i+". Got "+o.getClass()+", expected "+method.getParameterTypes()[i]);
             }
-            this.inputs[i] = o;
+            this.inputs[i] = method.getParameterTypes()[i].cast(o);
+        }
+
+        public T getOutput() {
+            return output;
         }
 
         @Override
         public void run() {
+            System.out.println(this.method);
+            System.out.println(inputs[0].getClass());
+            System.out.println(Arrays.toString(inputs));
             try {
-                this.output = this.method.invoke(inputs);
+                this.output = (T)this.method.invoke(inputs);
             } catch (Exception e){
                 e.printStackTrace();
             }
@@ -138,6 +161,9 @@ public class CPU extends Thread {
         n[n.length-1] = runnable;
         this.runnables = n;
     }
+    public Runnable getRunnable(int id) {
+        return this.runnables[id];
+    }
 
     // DOESN'T WORK
     public void addRunnables(Runnable... runnables){
@@ -151,14 +177,32 @@ public class CPU extends Thread {
         }
         this.functions = ExtraArray.concat(this.functions,functions);
     }
-
     public <T> void setFunctionInput (int index, T input){
         this.functions[index].input = input;
+    }
+
+    public OptimFunction getOptimFunction(int index){
+        return this.functions[index];
+    }
+    public Function getFunction(int index){
+        return getOptimFunction(index);
+    }
+
+    public void addMethod(Method method, Class<?> retType, Object... params) throws Exception {
+        this.methods = ExtraArray.concat(this.methods,new OptimMethod(method,retType,params));
     }
 
     public void addMethod(Method method, Object... params) throws Exception {
         this.methods = ExtraArray.concat(this.methods,new OptimMethod(method,params));
     }
+
+    public Method getMethod(int index){
+        return getOptimMethod(index).method;
+    }
+    public OptimMethod getOptimMethod(int index){
+        return this.methods[index];
+    }
+
     public void addMethods(Method... methods){
         OptimMethod[] functions = new OptimMethod[methods.length];
         for (int i=0;i<methods.length;i++){
@@ -191,7 +235,7 @@ public class CPU extends Thread {
             runs[i+this.runnables.length] = this.functions[i];
         }
         for (int i=0;i<this.methods.length;i++){
-            runs[i+this.runnables.length+this.methods.length] = this.methods[i];
+            runs[i+this.runnables.length+this.functions.length] = this.methods[i];
         }
 
         if (smt > runs.length){

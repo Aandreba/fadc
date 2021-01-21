@@ -1,9 +1,11 @@
 package Extras;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Array;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.text.DateFormat;
 import java.util.*;
 
 public class ExtraSystem {
@@ -236,8 +238,31 @@ public class ExtraSystem {
     }
     public static Enviroment env = new Enviroment();
 
+    public static Process ex(String command) throws IOException {
+        try {
+            return Runtime.getRuntime().exec(command);
+        } catch (IOException e){
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    public static InputStream exe(String command) throws IOException {
+        try {
+            return ex(command).getInputStream();
+        } catch (IOException e){
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
     public static String exec(String command) throws IOException {
-        return new String(Runtime.getRuntime().exec(command).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        try {
+            return new String(exe(command).readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e){
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     public static Date wmicDate(String date){
