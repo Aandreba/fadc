@@ -17,10 +17,13 @@ public class Main {
     final public static String[] options = new String[]{ "add" };
 
     public static void main(String[] args) throws Exception {
-        if (ExtraSystem.env.os != ExtraSystem.Enviroment.OS.Windows){
+        /*if (ExtraSystem.env.os != ExtraSystem.Enviroment.OS.Windows){
             System.out.println("Sorry, we currently only support Windows");
             System.exit(1);
-        }
+        }*/
+        File f = new File("./data/table");
+        System.out.println(ExtraFile.lastAccessTime(f));
+        System.exit(1);
         System.out.println("Hello :)");
         if (!Table.table.exists()){
             System.out.println("Table not found. Creating new one");

@@ -2,6 +2,7 @@ package Extras;
 
 import Optimization.CPU;
 
+import javax.management.InvalidAttributeValueException;
 import java.io.*;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -50,10 +51,18 @@ public class ExtraFile {
         writeBytes(new File(path), bytes);
     }
 
-    public static Map<File,Date> lastAccessTime(File file) throws IOException {
-        if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Unix){
-            // UNIX (TO DO)
-            String[] lines = ExtraSystem.exec("stat "+file.getAbsolutePath()).strip().split("\n+");
+    private static Date unixLastAccessTime(File file) throws IOException {
+        String exec = ExtraSystem.exec("stat -r "+file.getCanonicalPath());
+        String[] data = exec.split("\s+");
+        return new Date(Long.parseLong(data[8])*1000);
+    }
+
+    public static Date lastAccessTime(File file) throws Exception {
+        if (file.isDirectory()){
+            throw new InvalidAttributeValueException("Directory provided, file expected");
+        }
+        if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Unix || ExtraSystem.env.os == ExtraSystem.Enviroment.OS.OSX){
+            return unixLastAccessTime(file);
         } else if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Windows){
             // Windows (TO DO)
         }
@@ -88,34 +97,41 @@ public class ExtraFile {
 
     public static Map<File,Date> lastAccessTimes(File dir) throws Exception {
         // UNIX: stat /etc
-        Map<File,Date> out = new HashMap<>();
-        CPU optim = new CPU(() -> {
-            try {
-                System.out.println("Error");
-                out.putAll(windowsAccessTimes(dir));
-            } catch (IOException e) {
-                System.out.println("ErRoR");
-                e.printStackTrace();
-            }
-        });
-        optim.setCPUPct(0.5f);
+        if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.OSX || ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Unix){
 
-        File[] files = dir.listFiles();
-        for (File file: files){
-            if (!file.isDirectory()){
-                continue;
-            }
-            optim.addRunnable(() -> {
+        } else if (ExtraSystem.env.os == ExtraSystem.Enviroment.OS.Windows) {
+            Map<File, Date> out = new HashMap<>();
+            CPU optim = new CPU(() -> {
                 try {
-                    out.putAll(lastAccessTimes(file));
-                } catch (Exception e) {
                     System.out.println("Error");
+                    out.putAll(windowsAccessTimes(dir));
+                } catch (IOException e) {
+                    System.out.println("ErRoR");
                     e.printStackTrace();
                 }
             });
+            optim.setCPUPct(0.5f);
+
+            File[] files = dir.listFiles();
+            for (File file : files) {
+                if (!file.isDirectory()) {
+                    continue;
+                }
+                optim.addRunnable(() -> {
+                    try {
+                        out.putAll(lastAccessTimes(file));
+                    } catch (Exception e) {
+                        System.out.println("Error");
+                        e.printStackTrace();
+                    }
+                });
+            }
+            // TO DO
+            optim.start();
+            Thread.sleep(5000);
+            optim.interrupt();
+            return out;
         }
-        // TO DO
-        optim.start();
-        return out;
+        return null;
     }
 }

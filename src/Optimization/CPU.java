@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.Function;
 
-public class CPU implements Runnable {
+public class CPU extends Thread {
     class OptimFunction<T,R> implements Runnable, Function<T,R> {
         public Function<T,R> func;
         public T input;
@@ -205,7 +205,7 @@ public class CPU implements Runnable {
             i++;
         }
 
-        while (i < runs.length){
+        while (i < runs.length && !this.isInterrupted()){
             for (int j=0;j<threads.length;j++){
                 if (threads[j].getState() == Thread.State.TERMINATED){
                     i++;
