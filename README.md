@@ -1,2 +1,1 @@
-# fadc
-FADC - Frequently Accessed Data Cache
+# FADC - Frequently Accessed Data Cache
